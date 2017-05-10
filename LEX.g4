@@ -14,7 +14,6 @@ X_DOCUMENTCLASS: '\\documentclass';
 X_USEPACKAGE: '\\usepackage';
 
 DOLLAR: '\\$';
-DMATH: '$$';
 MATH: '$';
 
 L_BRACKET: '[';
@@ -26,6 +25,6 @@ AMPER: '&' -> skip;
 
 ENDLINE: '\\\\';
 COMMAND: '\\' [a-zA-Z]+;
-TEXT: ~[\\{}]+ ;
+TEXT: ~[\\{}$]+ ;
 
 WS: ' \n\t' -> channel(whitespace);
