@@ -1,0 +1,3 @@
+[submodule "latex2sympy"]
+	path = latex2sympy
+	url = https://github.com/augustt198/latex2sympy.git
