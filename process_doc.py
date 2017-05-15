@@ -12,14 +12,19 @@ from sympy.printing.str import StrPrinter
 
 from latex2sympy import process_latex
 
+class Parser(DOCParser):
+    def tagsMatch(self, x, y):
+        return x == y
+
+
 def process_doc(sympy):
-    
+
     stream=antlr4.InputStream(sympy)
     lex = DOCLexer(stream)
     
     tokens=antlr4.CommonTokenStream(lex)
-    parser=DOCParser(tokens)
-
+    parser=Parser(tokens)
+ 
     document = parser.document()
 
     return document
@@ -39,34 +44,114 @@ def debug(s):
 def parse(s, node):
     lexer = DOCLexer(InputStream(s))
     stream = CommonTokenStream(lexer)
-    parser = DOCParser(stream)
+    parser = Parser(stream)
+
+#    print("extracted version {}". format(parser.extractVersion("4.7")))
+#    print("checking version")
+#    parser.checkVersion("4.7")
+#    print("succeeded")
+
     tree = getattr(parser, node)()
     #print(type(tree), tree.__dict__)
-    listener = LatexListener()
+    listener = documentListener()
     walker = antlr4.ParseTreeWalker()
     walker.walk(listener, tree)
 
     return listener
 
-class LatexListener(DOCListener):
+class MathParser(DOCListener):
     def __init__(self):
+        self.maths=[]
+        self.labels={}
+
+class documentListener(MathParser):
+    def __init__(self):
+        super(documentListener, self).__init__()
         debug("Initialising listener")
         self.environment_stack=[]
+        self.math_mode=False
+        self.ignore=False
+        #self.content_stack=[]
 
-    def enterEnvironment(self, ctx):
-        print("begin", ctx, ctx.__dict__)
-        self.environment_stack.push(ctx.name)
+    def enterStart_env(self, ctx):
+        print("begin", ctx.name.text)
+        self.environment_stack.append(ctx.name)
+#        print(ctx.children)
+#        for (i, x) in enumerate(ctx.children):
+#            print(i, x.getText())
+#        #self.content_stack
 
     def enterContent(self, ctx):
-        print("content:", ctx.getText())
+        if self.ignore:
+            pass
+        else:
+            print("Non-mathematical content:", ctx.getText())
 
     def enterDisplay_math(self, ctx):
-        print("$$", process_latex.process_sympy(ctx.m.text))
+        if not self.math_mode:
+            print("Equation: {}".format(process_latex.process_sympy(ctx.m.text)))
+        else:
+            print("Warning attempt to invoke display math in math environment")
+
+    def enterEnvironment(self, ctx):
+        name=ctx.startname.text
+        print("Begin", name)
+        self.environment_stack.append(name)
+        if name==u"align":
+            self.ignore=True
+            #print("align:", ctx, type(ctx))
+            #print(ctx.content())
+            walker = antlr4.ParseTreeWalker()
+            walker.walk(alignListener(), ctx)
+
+
+    def exitEnvironment(self, ctx):
+        name=ctx.endname.text
+        print("End", name)
+        env=self.environment_stack.pop()
+        if env != name:
+            print("Warning attempted to end {} environment in {} environment".format(name, env))
+
+class alignListener(MathParser):
+    def __init__(self):
+        super(alignListener, self).__init__()
+        self.general_stack=[]
+        self.equations=[]
+        #print("Initialising alignListener")
+
+    def ship_equation(self):
+        if len(self.general_stack) > 0:
+            s=' '.join(self.general_stack)
+            m=process_latex.process_sympy(s)
+            print("Equation: {}".format(m))
+            self.equations.append(m)
+            self.general_stack=[]
+
+    def enterContent(self, ctx):
+        #print("#### Content {} {} ####".format(type(ctx), ctx.getText()))
+        if ctx.TEXT():
+            s=ctx.getText()
+            #print("all text:", s)
+            self.general_stack.append(s)
+        elif ctx.ENDLINE():
+            self.ship_equation()
+
+    def exitContent(self, ctx):
+        self.ship_equation()
 
 # Lots of tests
 if __name__ == "__main__":
 
-    print(parse(r"$$3+8/2$$", "content").environment_stack)
+    parse(r'''
+\begin{align}
+13=x*4y \\
+13/x=4y
+\end{align}
+
+$$1+1=2$$
+$$x^2 + 2y =0$$''', "document_body")
+#    parse(r"\begin{align}\end{align}", "content")
+    #print(parse(r"\begin{align}\end{align}$$3+8/2$$", "content").environment_stack)
 
     s=r'''
 \documentclass[a4paper]{report}

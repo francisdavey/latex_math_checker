@@ -14,16 +14,17 @@ text_element: X_TEXT L_BRACE TEXT R_BRACE;
 display_math: MATH MATH m=TEXT MATH MATH;
 inline_math: MATH m=TEXT MATH;
 
-
 document_class:  X_DOCUMENTCLASS latex_cmd_predicate;
 package_decl: X_USEPACKAGE latex_cmd_predicate;
 packages: package_decl | package_decl packages;
 header : document_class packages | document_class;
 
-start_env: X_BEGIN L_BRACE name=TEXT R_BRACE;
-end_env: X_END L_BRACE name=TEXT R_BRACE;
+environment: X_BEGIN L_BRACE startname=TEXT R_BRACE body=environment_body X_END L_BRACE endname=TEXT R_BRACE {self.tagsMatch($startname, $endname)};
 
-content: (start_env | end_env | display_math | inline_math | TEXT | COMMAND | ENDLINE | L_BRACE content R_BRACE)+;
+content: (environment | display_math | inline_math | TEXT | COMMAND | ENDLINE | L_BRACE content R_BRACE);
 
-document: header content;
+environment_body: content*;
+document_body: content*;
+
+document: header document_body;
 
