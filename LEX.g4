@@ -13,6 +13,10 @@ X_LABEL: '\\label';
 X_DOCUMENTCLASS: '\\documentclass';
 X_USEPACKAGE: '\\usepackage';
 
+X_SYMPY: '\\sympy';
+
+LMATHL: '\\[';
+LMATHR: '\\]';
 DOLLAR: '\\$';
 MATH: '$';
 
@@ -25,6 +29,6 @@ AMPER: '&' -> skip;
 
 ENDLINE: '\\\\';
 COMMAND: '\\' [a-zA-Z]+;
-TEXT: ~[\\{}$]+ ;
+TEXT: ~[\][\\{}$&]+ ;
 
 WS: ' \n\t' -> channel(whitespace);
