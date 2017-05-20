@@ -35,14 +35,31 @@ def pretty_print(result):
         print("[{}]:\t{}{}".format(i, e, s))
     print(result.equation_labels)
 
-class Parser(DOCParser):
-    def tagsMatch(self, x, y):
-        #print("Checking to see if tag {} matches tag {}".format(x, y))
-        return x == y
+mathematical_environments=[u'align', u'equation', u'gather', u'align*', u'equation*', u'gather*']
 
-    def isMathEnvironment(self, x):
-        #print("Checking if {} is a math environment.".format(x.text))
-        predicate=x.text.strip() in [u'align', u'equation', u'gather', u'align*', u'equation*', u'gather*']
+class Parser(DOCParser):
+    
+    
+
+    def math_test(self):
+        print("math test.")
+ 
+    def tagsMatch(self, x, y):
+        x=x.text.strip()
+        y=y.text.strip()
+        #print("Checking to see if tag {} matches tag {}".format(x, y))
+        predicate = (x == y)
+        #print("Answer: {}".format(predicate))
+  #      print("In addition:", self._input.LT(1).text)
+        return predicate
+
+    def isMathEnvironment(self):
+        name=self._input.LT(3).text.strip()
+        #print("Checking if {} is a math environment.".format(name))
+        if name in mathematical_environments:
+            predicate=True
+        else:
+            predicate=False
         #print("Answer: {}".format(predicate))
         return predicate
 
@@ -88,7 +105,7 @@ def parse(s, node):
 
     return listener
 
-class MathParser(DOCListener):
+class MathListener(DOCListener):
     def __init__(self):
         self.equation_labels={}
         self.equations=[]
@@ -102,7 +119,11 @@ class MathParser(DOCListener):
         if len(self.math_fragment_stack) > 0:
             s=' '.join(self.math_fragment_stack)
             if self.convert:
-                m=process_latex.process_sympy(s)
+                try:
+                    m=process_latex.process_sympy(s)
+                except:
+                    print("**** sympy conversion failed on {}".format(s))
+                    m=s.strip()
                 separator=" === "
             else:
                 m=s.strip()
@@ -123,10 +144,10 @@ class MathParser(DOCListener):
         #print("Pushing math fragment {} on to {}".format(s, self.math_fragment_stack))
         self.math_fragment_stack.append(s)        
 
-class documentListener(MathParser):
+class documentListener(MathListener):
     def __init__(self):
         super(documentListener, self).__init__()
-        debug("Initialising listener")
+        #debug("Initialising listener")
         self.environment_stack=[]
         self.ignore=False
         self.packages=[]
@@ -137,6 +158,8 @@ class documentListener(MathParser):
         self.document_class=ctx.class_prop.text
 
     def enterPackage_decl(self, ctx):
+        #print("Enter Package with context:", ctx)
+        #print("Package prop", ctx.package_prop)
         self.packages.append(ctx.package_prop.text)
 
 #    def enterStart_environment(self, ctx):
@@ -148,7 +171,7 @@ class documentListener(MathParser):
 #        #        #self.content_stack
 
     def enterDocument_body(self, ctx):
-        print("#### Document body")
+        pass # print("#### Document body")
 
     def enterContent(self, ctx):
         pass # print("Content: {}".format(ctx.getText()))
@@ -166,7 +189,7 @@ class documentListener(MathParser):
 
     def enterEnvironment(self, ctx):
         name=ctx.startname.text
-        print("Begin", name)
+        #print("Begin", name)
         self.environment_stack.append(name)
 #        if name==u"align":
 #            self.ignore=True
@@ -180,7 +203,7 @@ class documentListener(MathParser):
 
     def exitEnvironment(self, ctx):
         name=ctx.endname.text
-        print("End", name)
+        #print("End", name)
         env=self.environment_stack.pop()
         if env != name:
             print("Warning attempted to end {} environment in {} environment".format(name, env))
@@ -236,27 +259,62 @@ if __name__ == "__main__":
 #    s=r'''45 \\ \foo \bar XXY {a \or b}'''
 #    parse(s, "document_body")
 
-    s=r'''
+#    s=r'''
+#\begin{align}
+#\frac{q_{\mathit{in}}^{2}}{m_{q}} + \frac{p_{\mathit{in}}^{2}}{m_{p}} &= \frac{q_{\mathit{out}}^{2}}{m_{q}} + \frac{p_{\mathit{out}}^{2}}{m_{p}}&&\text{conservation of energy}\\
+#m_{p} q_{\mathit{in}}^{2} + m_{q} p_{\mathit{in}}^{2} &= m_{p} q_{\mathit{out}}^{2} + m_{q} p_{\mathit{out}}^{2}&&\text{eliminating denominators}\\
+#p_{\mathit{in}} + q_{\mathit{in}} &= p_{\mathit{out}} + q_{\mathit{out}}&&\text{conservation of momentum}\\
+#q_{\mathit{out}} &= p_{\mathit{in}} - p_{\mathit{out}} + q_{\mathit{in}}&&\text{making $q_{\mathit{out}}$ the subject of the equation.}\\
+#m_{p} q_{\mathit{in}}^{2} + m_{q} p_{\mathit{in}}^{2} &= m_{p} \left(p_{\mathit{in}} - p_{\mathit{out}} + q_{\mathit{in}}\right)^{2} + m_{q} p_{\mathit{out}}^{2}&&\text{substituting}
+#\end{align}'''
+#    #result=parse(s, "document_body")
+#    #pretty_print(result)
+#
+    s=r'''\documentclass[a4paper]{report}
+\usepackage{mathtools}
+\begin{document}
 \begin{align}
-\frac{q_{\mathit{in}}^{2}}{m_{q}} + \frac{p_{\mathit{in}}^{2}}{m_{p}} &= \frac{q_{\mathit{out}}^{2}}{m_{q}} + \frac{p_{\mathit{out}}^{2}}{m_{p}}&&\text{conservation of energy}\\
-m_{p} q_{\mathit{in}}^{2} + m_{q} p_{\mathit{in}}^{2} &= m_{p} q_{\mathit{out}}^{2} + m_{q} p_{\mathit{out}}^{2}&&\text{eliminating denominators}\\
-p_{\mathit{in}} + q_{\mathit{in}} &= p_{\mathit{out}} + q_{\mathit{out}}&&\text{conservation of momentum}\\
-q_{\mathit{out}} &= p_{\mathit{in}} - p_{\mathit{out}} + q_{\mathit{in}}&&\text{making $q_{\mathit{out}}$ the subject of the equation.}\\
-m_{p} q_{\mathit{in}}^{2} + m_{q} p_{\mathit{in}}^{2} &= m_{p} \left(p_{\mathit{in}} - p_{\mathit{out}} + q_{\mathit{in}}\right)^{2} + m_{q} p_{\mathit{out}}^{2}&&\text{substituting}
-\end{align}'''
-    result=parse(s, "document_body")
+\frac{q_{in}^{2}}{m_{q}} + \frac{p_{in}^{2}}{m_{p}} &= \frac{q_{\mathit{out}}^{2}}{m_{q}} + \frac{p_{out}^{2}}{m_{p}}&&\text{conservation of energy}\\
+m_{p} q_{in}^{2} + m_{q} p_{in}^{2} &= m_{p} q_{out}^{2} + m_{q} p_{out}^{2}&&\text{eliminating denominators}\\
+p_{in} + q_{in} &= p_{out} + q_{out}&&\text{conservation of momentum}\\
+q_{out} &= p_{in} - p_{out} + q_{in}&&\text{making $q_{out}$ the subject of the equation.}\\
+m_{p} q_{in}^{2} + m_{q} p_{in}^{2} &= m_{p} \left(p_{in} - p_{out} + q_{in}\right)^{2} + m_{q} p_{out}^{2}&&\text{substituting}
+\end{align}
+\end{document}'''
+    node="document"
+    #import newtest
+    #newtest.test_parse(DOCLexer, Parser, documentListener, s, node)
+    result=parse(s, node)
     pretty_print(result)
-
+#
+#    s=r'''\begin{document}
+#    \begin{align}1\end{align}
+#    \end{document}'''
+#    node="document_body"
+#    import newtest
+#    print(newtest.test_parse(DOCLexer, Parser, documentListener, s, node))
+#    result=parse(s, node)
+#    pretty_print(result)
+#
 #    s=r'''\documentclass[a4paper]{report}
 #\usepackage{mathtools}
 #\begin{document}
-#\begin{align}
-#\frac{q_{in}^{2}}{m_{q}} + \frac{p_{in}^{2}}{m_{p}} &= \frac{q_{\mathit{out}}^{2}}{m_{q}} + \frac{p_{out}^{2}}{m_{p}}&&\text{conservation of energy}\\
-#m_{p} q_{in}^{2} + m_{q} p_{in}^{2} &= m_{p} q_{out}^{2} + m_{q} p_{out}^{2}&&\text{eliminating denominators}\\
-#p_{in} + q_{in} &= p_{out} + q_{out}&&\text{conservation of momentum}\\
-#q_{out} &= p_{in} - p_{out} + q_{in}&&\text{making $q_{out}$ the subject of the equation.}\\
-#m_{p} q_{in}^{2} + m_{q} p_{in}^{2} &= m_{p} \left(p_{in} - p_{out} + q_{in}\right)^{2} + m_{q} p_{out}^{2}&&\text{substituting}
-#\end{align}
-#\end{document}'''
-#    result=parse(s, "document")
+#    \begin{align}1\end{align}
+#    \end{document}'''
+#    node="document"
+#    import newtest
+#    print(newtest.test_parse(DOCLexer, Parser, documentListener, s, node, show_text=['content', 'document_body', 'packages', 'header']))
+#    result=parse(s, node)
 #    pretty_print(result)
+
+#    s=r'''
+#\usepackage{amsmath}
+#\usepackage{mathtools}
+#'''
+#    node="packages"
+#    import newtest
+#    print(newtest.tokens(DOCLexer, s))
+#    print(newtest.test_parse(DOCLexer, Parser, documentListener, s, node, show_text=['content', 'document_body', 'packages', 'header']))
+#    result=parse(s, node)
+#    pretty_print(result)
+

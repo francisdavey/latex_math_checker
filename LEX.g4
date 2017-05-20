@@ -4,7 +4,7 @@ options {
         language=Python2;
 }
 
-channels { whitespace }
+channels { WHITESPACE }
 
 X_BEGIN: '\\begin';
 X_END: '\\end';
@@ -29,6 +29,6 @@ AMPER: '&' -> skip;
 
 ENDLINE: '\\\\';
 COMMAND: '\\' [a-zA-Z]+;
-TEXT: ~[\][\\{}$&]+ ;
+TEXT: ~[\][\n\t\\{}$&]+ ;
 
-WS: ' \n\t' -> channel(whitespace);
+WS: [ \n\t]+ -> skip;
